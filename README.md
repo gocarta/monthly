@@ -1,5 +1,8 @@
 # monthly
-Monthly Statistics about Chattanooga.  Great for Performance Management and Data Analysis!
+Monthly Statistics about Chattanooga.  Great for Data Analysis!
+
+## direct link to data
+https://raw.githubusercontent.com/gocarta/monthly/refs/heads/main/stats.csv
 
 ## columns
 The following columns are provided:
