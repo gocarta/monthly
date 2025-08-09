@@ -15,6 +15,7 @@ import astral
 from astral.sun import sun
 import duckdb
 
+MIN_YEAR = 2000
 SUNNY = set(["CLR:00", "FEW:01", "FEW:02"])
 NEW_YORK = zoneinfo.ZoneInfo("America/New_York")
 
@@ -41,7 +42,9 @@ def rnd(n):
 
 # connect
 url = "https://raw.githubusercontent.com/openchattanooga/GHCNh/refs/heads/main/GHCNh_USW00013882_por.parquet"
-duckdb.sql(f'CREATE VIEW data AS SELECT * FROM read_parquet("{url}");')
+duckdb.sql(
+    f'CREATE VIEW data AS SELECT * FROM read_parquet("{url}") WHERE Year >= {MIN_YEAR};'
+)
 
 # create info for each day
 days = {}
@@ -106,13 +109,13 @@ for row in rows:
             "night_temps": [],
         }
 
-    temp = row["temperature"]
+    temp = c2f(row["temperature"])
 
     if temp is not None:
-        if sunrise < ref < dusk:
-            days[key]["day_temps"].append(temp)
-        if ref < dawn or ref > dusk:
-            days[key]["night_temps"].append(temp)
+        if sunrise < ref < sunset:
+            days[key]["day_temps"].append((hour, temp))
+        if ref < sunrise or ref > sunset:
+            days[key]["night_temps"].append((hour, temp))
 
         if days[key]["min_temp"] is None or temp < days[key]["min_temp"]:
             days[key]["min_temp"] = temp
@@ -191,12 +194,14 @@ for row in months.values():
             "cloudy_days": row["cloudy_days"],
             "rainy_days": row["rainy_days"],
             "sunny_days": row["sunny_days"],
-            "average_daily_low": rnd(c2f(avg(row["min_temps"]))),
-            "average_daily_high": rnd(c2f(avg(row["max_temps"]))),
-            "average_nighttime_temperature": rnd(c2f(avg(row["night_temps"]))),
-            "average_daytime_temperature": rnd(c2f(avg(row["day_temps"]))),
+            "avg_low": rnd(avg(row["min_temps"])),
+            "avg_high": rnd(avg(row["max_temps"])),
+            # "avg_nighttime_temp": rnd(avg([t for h, t in row["night_temps"]])),
+            # "avg_daytime_temp": rnd(avg([t for h, t in row["day_temps"]]))
         }
     )
+    # if results[-1]["avg_nighttime_temp"] > results[-1]["avg_daytime_temp"]:
+    #     print(row)
 
 with open("stats.csv", "w", newline="") as f:
     writer = csv.DictWriter(
@@ -210,10 +215,8 @@ with open("stats.csv", "w", newline="") as f:
             "cloudy_days",
             "rainy_days",
             "sunny_days",
-            "average_daily_high",
-            "average_daily_low",
-            "average_daytime_temperature",
-            "average_nighttime_temperature",
+            "avg_low",
+            "avg_high",
         ],
     )
     writer.writeheader()
